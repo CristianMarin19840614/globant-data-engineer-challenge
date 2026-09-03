@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-dev.txt
+      - name: Run the test suite
+        run: python -m pytest -q
+      - name: Load the CSV files and check the counts
+        run: |
+          python load_csv.py --reset
+          python - <<'PY'
+          import sqlite3
+          counts = dict(sqlite3.connect("data/challenge.db").execute(
+              "SELECT 'employees', COUNT(*) FROM hired_employees "
+              "UNION ALL SELECT 'rejected', COUNT(*) FROM rejected_records"))
+          assert counts == {"employees": 1929, "rejected": 70}, counts
+          print("migration counts OK:", counts)
+          PY
