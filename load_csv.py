@@ -9,13 +9,14 @@ batches of 1000 - the same limit the API enforces - so memory does not grow
 with the size of the file.
 """
 import csv
+import os
 import sys
 from pathlib import Path
 
 from database import connect, create_schema
 from validation import COLUMNS, ingest
 
-RAW_DIR = Path(__file__).parent / "data" / "raw"
+RAW_DIR = Path(os.getenv("RAW_DIR", Path(__file__).parent / "data" / "raw"))
 BATCH_SIZE = 1000
 
 # Parents before children, so the foreign keys of hired_employees resolve.
