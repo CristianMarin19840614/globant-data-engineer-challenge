@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Leave API_KEY empty to run the demo without authentication.
+      API_KEY: ${API_KEY:-}
+      DB_PATH: /data/challenge.db
+      BACKUP_DIR: /data/backups
+    volumes:
+      # The database and the AVRO backups survive a rebuild of the image.
+      - ./data:/data
+
+  # One-shot job: loads the CSV files and exits.
+  #   docker compose run --rm load
+  load:
+    build: .
+    profiles: ["tools"]
+    environment:
+      DB_PATH: /data/challenge.db
+      RAW_DIR: /app/data/raw
+    volumes:
+      - ./data:/data
+    command: ["python", "load_csv.py", "--reset"]
