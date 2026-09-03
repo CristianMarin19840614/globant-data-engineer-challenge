@@ -26,9 +26,12 @@ Then open **http://localhost:8000/docs** for the interactive documentation.
 With Docker:
 
 ```bash
-docker build -t globant-challenge .
-docker run -p 8000:8000 globant-challenge
+docker compose run --rm load     # load the CSV files, then exit
+docker compose up                # the API on http://localhost:8000
 ```
+
+The database and the AVRO backups live on a mounted volume, so they survive a
+rebuild of the image.
 
 ---
 
@@ -77,6 +80,10 @@ avro_backup.py    backup to AVRO and restore from it
 api.py            the REST API and the two analytical queries
 tests/            14 tests, no fixtures and no HTTP client
 data/raw/         the CSV files provided with the challenge
+
+Dockerfile · docker-compose.yml    run it anywhere, with a volume for the data
+.github/workflows/ci.yml           tests and a migration check on every push
+DEPLOYMENT.md                      the cloud path, and what would have to change
 ```
 
 Nine files, no framework layers, no ORM. The SQL is written out and can be run
@@ -178,23 +185,95 @@ and the contract is smaller.
 
 ---
 
-## Security considerations
+## Security
 
-The API has no authentication: it is a proof of concept meant to be run
-locally. What I would add before it was reachable by anyone else, in order:
+The write surface — the three ingestion endpoints, `backup` and `restore` —
+requires an API key. The analytical endpoints stay open so the queries can be
+demoed without credentials.
 
-1. **Authentication on the write endpoints** — an API key header for a first
-   step, OAuth2 with scopes (`ingest:write`, `backup:admin`, `analytics:read`)
-   for anything real. The analytical endpoints can stay open.
-2. **TLS at the gateway**, so credentials and payloads are not sent in clear.
-3. **Rate limiting per client**, since the ingestion endpoints accept a
-   thousand rows per request.
-4. **Audit logging** of who ingested what, alongside the rejection log.
+```bash
+API_KEY=your-key uvicorn api:app          # enable it
+curl -X POST localhost:8000/departments -H "X-API-Key: your-key" ...
+```
 
-What is already in place: no SQL is built by string concatenation — every
-query uses bind parameters, so the ingestion endpoints cannot be used for SQL
-injection; the batch size is capped; and the container runs the app without
-extra privileges.
+Leaving `API_KEY` empty disables the check, which is what the test suite and a
+local demo use. The key is compared with `secrets.compare_digest`, not `==`: a
+plain string comparison stops at the first differing character, and the timing
+difference leaks the key one byte at a time.
+
+**This is proof-of-concept authentication and I would not ship it.** A shared
+key proves the caller knows a secret; it does not say who they are, cannot be
+revoked for one client without rotating it for everyone, and never expires.
+What I would add, in order:
+
+1. **OAuth2 with scopes** — `ingest:write`, `backup:admin`, `analytics:read` —
+   plugged into the same dependency, so the endpoint signatures do not change.
+2. **TLS at the gateway**, so the key and the payloads are not sent in clear.
+3. **Rate limiting per client**, since ingestion accepts a thousand rows per
+   request.
+4. **The key in a managed secret store** rather than an environment variable,
+   and **audit logging** of who ingested what, alongside the rejection log.
+
+What is already right: no SQL is built by string concatenation — every query
+uses bind parameters, so the ingestion endpoints cannot be used for injection;
+the batch size is capped; and unknown tables are rejected by name before any
+query is built.
+
+---
+
+## Git workflow
+
+`main` holds the working history. Each unit of work happened on a branch and
+came back with a merge commit, so the history shows what was done together:
+
+```
+*   merge: environment-driven configuration and the deployment guide
+|\
+| * feat(config): every path configurable by environment variable
+|/
+*   merge: docker compose and CI
+|\
+| * build: compose stack and CI on GitHub Actions
+|/
+*   merge: API key on the write endpoints
+|\
+| * feat(security): API key on the write endpoints
+|/
+* docs: README with instructions, decisions and limitations
+* build: minimal Dockerfile
+* test: 14 tests over the rules, the bounds and both queries
+...
+```
+
+Commits follow Conventional Commits (`feat`, `fix`, `test`, `build`, `docs`,
+`chore`) with a scope, and the body says why rather than what — the diff
+already says what.
+
+---
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` or a `feature/**`
+branch, and on every pull request. It does two things: runs the test suite,
+and then loads the CSV files and asserts the migration still ends at **1,929
+inserted and 70 rejected**. A change that silently alters a validation rule
+fails the build even if every unit test still passes.
+
+---
+
+## Cloud
+
+The application holds no state of its own: `DB_PATH`, `BACKUP_DIR` and
+`RAW_DIR` are environment variables, so the same image runs on a laptop, in a
+container and in a cloud runtime.
+
+**It is not deployed.** [`DEPLOYMENT.md`](DEPLOYMENT.md) documents the exact
+Cloud Run and Azure Container Apps commands, and — more usefully — what would
+have to change first: Cloud Run's filesystem is ephemeral and its instances do
+not share one, so a SQLite file on local disk is the wrong shape there. The
+first real change is a managed PostgreSQL instance, and the AVRO backups move
+to object storage, where they land in exactly the format BigQuery loads
+natively.
 
 ---
 
