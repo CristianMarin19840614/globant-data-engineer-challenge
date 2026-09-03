@@ -6,7 +6,10 @@ Three ingestion endpoints (one per table), backup and restore, and the two
 analytical queries. Every ingestion goes through the same `ingest()` used by
 the CSV loader.
 """
-from fastapi import Body, FastAPI, HTTPException
+import os
+import secrets
+
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from avro_backup import backup_all, restore_table
@@ -16,13 +19,36 @@ from validation import COLUMNS, ingest
 app = FastAPI(
     title="Globant Data Engineer Challenge",
     description="CSV migration, batch ingestion with validation, AVRO backup "
-                "and restore, and the two analytical queries.",
+                "and restore, and the two analytical queries.\n\n"
+                "Write endpoints require the `X-API-Key` header when API_KEY is set; "
+                "the analytical endpoints are always open.",
 )
 
 
 class Batch(BaseModel):
     """1 to 1000 rows per request, as the brief requires."""
     rows: list[dict] = Field(min_length=1, max_length=1000)
+
+
+# ------------------------------------------------------------------ security
+# A shared key on the write surface. Proof-of-concept level and deliberately
+# so: it proves the caller knows the secret, it does not say who they are.
+# Set API_KEY in the environment; leaving it empty disables the check, which
+# is what the tests and a local demo use.
+API_KEY = os.getenv("API_KEY", "")
+
+
+def require_api_key(x_api_key: str | None = Header(default=None)):
+    if not API_KEY:
+        return                                    # disabled
+    if not x_api_key or not secrets.compare_digest(x_api_key, API_KEY):
+        # compare_digest, not ==: a plain comparison stops at the first
+        # differing character, and the timing leaks the key one byte at a time.
+        raise HTTPException(status_code=401,
+                            detail="Missing or invalid API key. Send it in the X-API-Key header.")
+
+
+WRITE = [Depends(require_api_key)]                # the read endpoints stay open
 
 
 # --------------------------------------------------------------- ingestion
@@ -36,23 +62,23 @@ def _ingest(table, batch):
     return result
 
 
-@app.post("/departments", summary="Insert departments (1-1000 rows)")
+@app.post("/departments", dependencies=WRITE, summary="Insert departments (1-1000 rows)")
 def post_departments(batch: Batch):
     return _ingest("departments", batch)
 
 
-@app.post("/jobs", summary="Insert jobs (1-1000 rows)")
+@app.post("/jobs", dependencies=WRITE, summary="Insert jobs (1-1000 rows)")
 def post_jobs(batch: Batch):
     return _ingest("jobs", batch)
 
 
-@app.post("/hired-employees", summary="Insert hired employees (1-1000 rows)")
+@app.post("/hired-employees", dependencies=WRITE, summary="Insert hired employees (1-1000 rows)")
 def post_hired_employees(batch: Batch):
     return _ingest("hired_employees", batch)
 
 
 # ----------------------------------------------------------- backup/restore
-@app.post("/backup", summary="Back every table up to AVRO")
+@app.post("/backup", dependencies=WRITE, summary="Back every table up to AVRO")
 def post_backup():
     conn = connect()
     try:
@@ -61,7 +87,7 @@ def post_backup():
         conn.close()
 
 
-@app.post("/restore/{table}", summary="Restore one table from its newest AVRO backup")
+@app.post("/restore/{table}", dependencies=WRITE, summary="Restore one table from its newest AVRO backup")
 def post_restore(table: str):
     if table not in COLUMNS:
         raise HTTPException(status_code=404, detail=f"unknown table: {table}")
