@@ -1,0 +1,10 @@
+{
+  "_comment": "Five rows: one valid, and one breaking each rule of the brief.",
+  "rows": [
+    {"id": 90001, "name": "Ada Lovelace",    "datetime": "2021-07-27T16:02:08Z", "department_id": 5,   "job_id": 3},
+    {"id": 90002, "name": "",                "datetime": "2021-07-27T16:02:08Z", "department_id": 5,   "job_id": 3},
+    {"id": 90003, "name": "Grace Hopper",    "datetime": "2021-05-30",           "department_id": 5,   "job_id": 3},
+    {"id": 90004, "name": "Alan Turing",     "datetime": "2021-07-27T16:02:08Z", "department_id": 999, "job_id": 3},
+    {"id": 90005, "name": "Edsger Dijkstra", "datetime": "2021-07-27T16:02:08Z", "department_id": 5,   "job_id": 888}
+  ]
+}
