@@ -3,6 +3,7 @@
 AVRO and not CSV because the schema travels inside the file: a restore does
 not depend on the code that wrote the backup.
 """
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,7 +11,8 @@ import fastavro
 
 from validation import COLUMNS, insert
 
-BACKUP_DIR = Path(__file__).parent / "data" / "backups"
+# BACKUP_DIR=/data/backups in a container, or a mounted object-storage path.
+BACKUP_DIR = Path(os.getenv("BACKUP_DIR", Path(__file__).parent / "data" / "backups"))
 
 AVRO_SCHEMAS = {
     "departments": {

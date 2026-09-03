@@ -3,10 +3,13 @@
 Plain `sqlite3` from the standard library - no ORM. Every statement in this
 project is SQL you can read here and paste into a database console as-is.
 """
+import os
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "data" / "challenge.db"
+# Configurable so the same image runs locally and in a container with a
+# mounted volume: DB_PATH=/data/challenge.db
+DB_PATH = Path(os.getenv("DB_PATH", Path(__file__).parent / "data" / "challenge.db"))
 
 TABLES = ("hired_employees", "jobs", "departments", "rejected_records")
 
