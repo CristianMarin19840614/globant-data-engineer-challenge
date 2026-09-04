@@ -74,7 +74,7 @@ def main():
 
     if total_rejected:
         print(f"\n{total_rejected} record(s) rejected -> table `rejected_records`")
-        print("   SELECT errors, COUNT(*) FROM rejected_records GROUP BY errors;")
+        print('   python sql.py "SELECT errors, COUNT(*) FROM rejected_records GROUP BY 1"')
     conn.close()
 
 
