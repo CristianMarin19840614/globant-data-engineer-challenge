@@ -21,6 +21,13 @@ python -m pytest -q                 # 2. run the tests
 uvicorn api:app --reload            # 3. serve the API
 ```
 
+To read the database without installing a SQLite client:
+
+```bash
+python sql.py "SELECT errors, COUNT(*) FROM rejected_records GROUP BY 1"
+python sql.py "PRAGMA foreign_key_check"
+```
+
 Then open **http://localhost:8000/docs** for the interactive documentation.
 
 With Docker:
