@@ -159,6 +159,34 @@ The year is a bind parameter in both queries, with 2021 as the default.
 
 ---
 
+
+## Optional visualization
+
+From `globant-challenge`, with the virtual environment active and the CSVs
+already loaded, run:
+
+```powershell
+python dashboard.py
+Start-Process .\dashboard.html
+```
+
+`dashboard.py` imports both SQL constants from `api.py`, opens the configured
+SQLite database read-only, and writes a self-contained HTML with SVG charts.
+It uses the existing project dependencies, requires no running API, JavaScript
+or network access, and contains no employee names.
+
+The default year is 2021. The quarter chart totals all department/job pairs;
+expand the detail to see all 933 combinations in alphabetical order. The second
+chart and table show the seven departments above the active-department average
+(1,643 / 12 = 136.92), ordered by `hired DESC`. These are reference results for
+the supplied CSVs, not hardcoded values. New database records can change them.
+The page is a snapshot: rerun the script after changing the database.
+
+Options: `--year 2021`, `--db data/challenge.db`, `--output dashboard.html`.
+Without `--db`, it follows `DB_PATH` from `database.py`. The default HTML is
+written beside the script. A missing database fails without creating a file;
+a year without hires produces an explicit empty result.
+
 ## Design decisions
 
 **Plain `sqlite3` instead of an ORM.** SQLite needs nothing installed, so the
