@@ -325,5 +325,5 @@ natively.
 
 ---
 
-**Cristian Gregory Marin Chavez** 
+**Cristian Chavez** 
 cristian.marin@pucp.pe
