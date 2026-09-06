@@ -325,5 +325,5 @@ natively.
 
 ---
 
-**Cristian Gregory Marin Chavez** — Senior Data Engineer
+**Cristian Gregory Marin Chavez** 
 cristian.marin@pucp.pe
