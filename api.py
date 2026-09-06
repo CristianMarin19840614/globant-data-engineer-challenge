@@ -118,9 +118,7 @@ ORDER BY d.department, j.job
 """
 
 # Challenge #2.2 - departments that hired above the average.
-# The average is taken over the departments that hired that year. Dividing by
-# all twelve would drag the mean down and inflate the result; with this dataset
-# both readings return the same seven, because all twelve hired in 2021.
+
 DEPARTMENTS_ABOVE_AVERAGE = """
 WITH hires AS (
     SELECT d.id, d.department, COUNT(*) AS hired
